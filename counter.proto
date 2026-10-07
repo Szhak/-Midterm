@@ -1,0 +1,27 @@
+syntax = "proto3";
+package counter;
+
+service Counter {
+  rpc Increment (IncrementRequest) returns (IncrementReply);
+  rpc Get (GetRequest) returns (GetReply);
+}
+
+message IncrementRequest {
+  string counter_id = 1;
+  int64 delta = 2;
+  string idempotency_key = 3;
+}
+
+message IncrementReply {
+  int64 new_value = 1;
+  bool was_duplicate = 2;
+}
+
+message GetRequest {
+  string counter_id = 1;
+}
+
+message GetReply {
+  int64 value = 1;
+  bool found = 2;
+}
