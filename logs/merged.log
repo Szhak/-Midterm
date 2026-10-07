@@ -1,0 +1,28 @@
+[client-1] SEND   Increment(counter=x, delta=1)  L=1
+[client-2] SEND   Increment(counter=y, delta=1)  L=1
+[client-3] SEND   Get(counter=x)  L=1
+[replica-A] RECV   Get(counter=x)  L=2  (received L=1)
+[replica-A] SEND   GetReply(value=0, found=False)  L=3
+[client-3] RECV   GetReply(value=0, found=False)  L=4  (received L=3)
+[replica-A] RECV   Increment(counter=x, delta=1)  L=4  (received L=1)
+[client-3] SEND   Get(counter=y)  L=5
+[replica-A] APPLY  counter=x -> 1  L=5
+[replica-A] SEND   IncrementReply(new_value=1)  L=6
+[client-1] RECV   IncrementReply(new_value=1)  L=7  (received L=6)
+[replica-A] RECV   Increment(counter=y, delta=1)  L=7  (received L=1)
+[client-1] SEND   Increment(counter=x, delta=1)  L=8
+[replica-A] APPLY  counter=y -> 1  L=8
+[replica-A] SEND   IncrementReply(new_value=1)  L=9
+[client-2] RECV   IncrementReply(new_value=1)  L=10  (received L=9)
+[replica-A] RECV   Get(counter=y)  L=10  (received L=5)
+[client-2] SEND   Increment(counter=y, delta=1)  L=11
+[replica-A] SEND   GetReply(value=1, found=True)  L=11
+[client-3] RECV   GetReply(value=1, found=True)  L=12  (received L=11)
+[replica-A] RECV   Increment(counter=x, delta=1)  L=12  (received L=8)
+[replica-A] APPLY  counter=x -> 2  L=13
+[replica-A] SEND   IncrementReply(new_value=2)  L=14
+[client-1] RECV   IncrementReply(new_value=2)  L=15  (received L=14)
+[replica-A] RECV   Increment(counter=y, delta=1)  L=15  (received L=11)
+[replica-A] APPLY  counter=y -> 2  L=16
+[replica-A] SEND   IncrementReply(new_value=2)  L=17
+[client-2] RECV   IncrementReply(new_value=2)  L=18  (received L=17)

@@ -1,0 +1,437 @@
+{
+  "results": {
+    "client-3": [
+      0,
+      1
+    ],
+    "client-1": [
+      1,
+      2
+    ],
+    "client-2": [
+      1,
+      2
+    ]
+  },
+  "events": [
+    {
+      "id": "client-1:1",
+      "node": "client-1",
+      "kind": "SEND",
+      "detail": "Increment(counter=x, delta=1)",
+      "time": 1,
+      "received": null,
+      "line": "[client-1] SEND   Increment(counter=x, delta=1)  L=1"
+    },
+    {
+      "id": "client-1:2",
+      "node": "client-1",
+      "kind": "RECV",
+      "detail": "IncrementReply(new_value=1)",
+      "time": 7,
+      "received": 6,
+      "line": "[client-1] RECV   IncrementReply(new_value=1)  L=7  (received L=6)"
+    },
+    {
+      "id": "client-1:3",
+      "node": "client-1",
+      "kind": "SEND",
+      "detail": "Increment(counter=x, delta=1)",
+      "time": 8,
+      "received": null,
+      "line": "[client-1] SEND   Increment(counter=x, delta=1)  L=8"
+    },
+    {
+      "id": "client-1:4",
+      "node": "client-1",
+      "kind": "RECV",
+      "detail": "IncrementReply(new_value=2)",
+      "time": 15,
+      "received": 14,
+      "line": "[client-1] RECV   IncrementReply(new_value=2)  L=15  (received L=14)"
+    },
+    {
+      "id": "client-2:1",
+      "node": "client-2",
+      "kind": "SEND",
+      "detail": "Increment(counter=y, delta=1)",
+      "time": 1,
+      "received": null,
+      "line": "[client-2] SEND   Increment(counter=y, delta=1)  L=1"
+    },
+    {
+      "id": "client-2:2",
+      "node": "client-2",
+      "kind": "RECV",
+      "detail": "IncrementReply(new_value=1)",
+      "time": 10,
+      "received": 9,
+      "line": "[client-2] RECV   IncrementReply(new_value=1)  L=10  (received L=9)"
+    },
+    {
+      "id": "client-2:3",
+      "node": "client-2",
+      "kind": "SEND",
+      "detail": "Increment(counter=y, delta=1)",
+      "time": 11,
+      "received": null,
+      "line": "[client-2] SEND   Increment(counter=y, delta=1)  L=11"
+    },
+    {
+      "id": "client-2:4",
+      "node": "client-2",
+      "kind": "RECV",
+      "detail": "IncrementReply(new_value=2)",
+      "time": 18,
+      "received": 17,
+      "line": "[client-2] RECV   IncrementReply(new_value=2)  L=18  (received L=17)"
+    },
+    {
+      "id": "client-3:1",
+      "node": "client-3",
+      "kind": "SEND",
+      "detail": "Get(counter=x)",
+      "time": 1,
+      "received": null,
+      "line": "[client-3] SEND   Get(counter=x)  L=1"
+    },
+    {
+      "id": "client-3:2",
+      "node": "client-3",
+      "kind": "RECV",
+      "detail": "GetReply(value=0, found=False)",
+      "time": 4,
+      "received": 3,
+      "line": "[client-3] RECV   GetReply(value=0, found=False)  L=4  (received L=3)"
+    },
+    {
+      "id": "client-3:3",
+      "node": "client-3",
+      "kind": "SEND",
+      "detail": "Get(counter=y)",
+      "time": 5,
+      "received": null,
+      "line": "[client-3] SEND   Get(counter=y)  L=5"
+    },
+    {
+      "id": "client-3:4",
+      "node": "client-3",
+      "kind": "RECV",
+      "detail": "GetReply(value=1, found=True)",
+      "time": 12,
+      "received": 11,
+      "line": "[client-3] RECV   GetReply(value=1, found=True)  L=12  (received L=11)"
+    },
+    {
+      "id": "replica-A:1",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Get(counter=x)",
+      "time": 2,
+      "received": 1,
+      "line": "[replica-A] RECV   Get(counter=x)  L=2  (received L=1)"
+    },
+    {
+      "id": "replica-A:2",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "GetReply(value=0, found=False)",
+      "time": 3,
+      "received": null,
+      "line": "[replica-A] SEND   GetReply(value=0, found=False)  L=3"
+    },
+    {
+      "id": "replica-A:3",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Increment(counter=x, delta=1)",
+      "time": 4,
+      "received": 1,
+      "line": "[replica-A] RECV   Increment(counter=x, delta=1)  L=4  (received L=1)"
+    },
+    {
+      "id": "replica-A:4",
+      "node": "replica-A",
+      "kind": "APPLY",
+      "detail": "counter=x -> 1",
+      "time": 5,
+      "received": null,
+      "line": "[replica-A] APPLY  counter=x -> 1  L=5"
+    },
+    {
+      "id": "replica-A:5",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "IncrementReply(new_value=1)",
+      "time": 6,
+      "received": null,
+      "line": "[replica-A] SEND   IncrementReply(new_value=1)  L=6"
+    },
+    {
+      "id": "replica-A:6",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Increment(counter=y, delta=1)",
+      "time": 7,
+      "received": 1,
+      "line": "[replica-A] RECV   Increment(counter=y, delta=1)  L=7  (received L=1)"
+    },
+    {
+      "id": "replica-A:7",
+      "node": "replica-A",
+      "kind": "APPLY",
+      "detail": "counter=y -> 1",
+      "time": 8,
+      "received": null,
+      "line": "[replica-A] APPLY  counter=y -> 1  L=8"
+    },
+    {
+      "id": "replica-A:8",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "IncrementReply(new_value=1)",
+      "time": 9,
+      "received": null,
+      "line": "[replica-A] SEND   IncrementReply(new_value=1)  L=9"
+    },
+    {
+      "id": "replica-A:9",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Get(counter=y)",
+      "time": 10,
+      "received": 5,
+      "line": "[replica-A] RECV   Get(counter=y)  L=10  (received L=5)"
+    },
+    {
+      "id": "replica-A:10",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "GetReply(value=1, found=True)",
+      "time": 11,
+      "received": null,
+      "line": "[replica-A] SEND   GetReply(value=1, found=True)  L=11"
+    },
+    {
+      "id": "replica-A:11",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Increment(counter=x, delta=1)",
+      "time": 12,
+      "received": 8,
+      "line": "[replica-A] RECV   Increment(counter=x, delta=1)  L=12  (received L=8)"
+    },
+    {
+      "id": "replica-A:12",
+      "node": "replica-A",
+      "kind": "APPLY",
+      "detail": "counter=x -> 2",
+      "time": 13,
+      "received": null,
+      "line": "[replica-A] APPLY  counter=x -> 2  L=13"
+    },
+    {
+      "id": "replica-A:13",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "IncrementReply(new_value=2)",
+      "time": 14,
+      "received": null,
+      "line": "[replica-A] SEND   IncrementReply(new_value=2)  L=14"
+    },
+    {
+      "id": "replica-A:14",
+      "node": "replica-A",
+      "kind": "RECV",
+      "detail": "Increment(counter=y, delta=1)",
+      "time": 15,
+      "received": 11,
+      "line": "[replica-A] RECV   Increment(counter=y, delta=1)  L=15  (received L=11)"
+    },
+    {
+      "id": "replica-A:15",
+      "node": "replica-A",
+      "kind": "APPLY",
+      "detail": "counter=y -> 2",
+      "time": 16,
+      "received": null,
+      "line": "[replica-A] APPLY  counter=y -> 2  L=16"
+    },
+    {
+      "id": "replica-A:16",
+      "node": "replica-A",
+      "kind": "SEND",
+      "detail": "IncrementReply(new_value=2)",
+      "time": 17,
+      "received": null,
+      "line": "[replica-A] SEND   IncrementReply(new_value=2)  L=17"
+    }
+  ],
+  "local_edges": [
+    [
+      "client-1:1",
+      "client-1:2"
+    ],
+    [
+      "client-1:2",
+      "client-1:3"
+    ],
+    [
+      "client-1:3",
+      "client-1:4"
+    ],
+    [
+      "client-2:1",
+      "client-2:2"
+    ],
+    [
+      "client-2:2",
+      "client-2:3"
+    ],
+    [
+      "client-2:3",
+      "client-2:4"
+    ],
+    [
+      "client-3:1",
+      "client-3:2"
+    ],
+    [
+      "client-3:2",
+      "client-3:3"
+    ],
+    [
+      "client-3:3",
+      "client-3:4"
+    ],
+    [
+      "replica-A:1",
+      "replica-A:2"
+    ],
+    [
+      "replica-A:2",
+      "replica-A:3"
+    ],
+    [
+      "replica-A:3",
+      "replica-A:4"
+    ],
+    [
+      "replica-A:4",
+      "replica-A:5"
+    ],
+    [
+      "replica-A:5",
+      "replica-A:6"
+    ],
+    [
+      "replica-A:6",
+      "replica-A:7"
+    ],
+    [
+      "replica-A:7",
+      "replica-A:8"
+    ],
+    [
+      "replica-A:8",
+      "replica-A:9"
+    ],
+    [
+      "replica-A:9",
+      "replica-A:10"
+    ],
+    [
+      "replica-A:10",
+      "replica-A:11"
+    ],
+    [
+      "replica-A:11",
+      "replica-A:12"
+    ],
+    [
+      "replica-A:12",
+      "replica-A:13"
+    ],
+    [
+      "replica-A:13",
+      "replica-A:14"
+    ],
+    [
+      "replica-A:14",
+      "replica-A:15"
+    ],
+    [
+      "replica-A:15",
+      "replica-A:16"
+    ]
+  ],
+  "message_edges": [
+    [
+      "replica-A:5",
+      "client-1:2"
+    ],
+    [
+      "replica-A:13",
+      "client-1:4"
+    ],
+    [
+      "replica-A:8",
+      "client-2:2"
+    ],
+    [
+      "replica-A:16",
+      "client-2:4"
+    ],
+    [
+      "replica-A:2",
+      "client-3:2"
+    ],
+    [
+      "replica-A:10",
+      "client-3:4"
+    ],
+    [
+      "client-3:1",
+      "replica-A:1"
+    ],
+    [
+      "client-1:1",
+      "replica-A:3"
+    ],
+    [
+      "client-2:1",
+      "replica-A:6"
+    ],
+    [
+      "client-3:3",
+      "replica-A:9"
+    ],
+    [
+      "client-1:3",
+      "replica-A:11"
+    ],
+    [
+      "client-2:3",
+      "replica-A:14"
+    ]
+  ],
+  "causal_chains": [
+    [
+      "client-1:2",
+      "client-1:3",
+      "replica-A:11"
+    ],
+    [
+      "client-2:2",
+      "client-2:3",
+      "replica-A:14"
+    ]
+  ],
+  "concurrent_pair": [
+    "client-1:1",
+    "client-3:2"
+  ],
+  "merge_note": "Sorted by Lamport time and node for display, not by wall-clock time. Only local and message edges establish happens-before.",
+  "concurrency_note": "Neither event is reachable from the other through the recorded local and message edges, although their Lamport values differ.",
+  "limitation": "Lamport values alone cannot distinguish causality from concurrency. Vector clocks can distinguish these relations."
+}

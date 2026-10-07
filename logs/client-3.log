@@ -1,0 +1,4 @@
+[client-3] SEND   Get(counter=x)  L=1
+[client-3] RECV   GetReply(value=0, found=False)  L=4  (received L=3)
+[client-3] SEND   Get(counter=y)  L=5
+[client-3] RECV   GetReply(value=1, found=True)  L=12  (received L=11)

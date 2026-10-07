@@ -1,6 +1,10 @@
+import json
 import re
+import subprocess
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import grpc
 import pytest
@@ -227,3 +231,32 @@ def test_lamport_proto_field(message):
     assert field.number == 4
     assert field.type == field.TYPE_UINT64
     assert restored.lamport_time == stamp
+
+
+def test_three_client_clock_scenario(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [sys.executable, "-B", str(root / "tests" / "clock_scenario.py"),
+         "--output-dir", str(tmp_path)],
+        cwd=root, capture_output=True, text=True, timeout=45,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    analysis = json.loads((tmp_path / "analysis.json").read_text(encoding="utf-8"))
+    assert analysis["results"]["client-1"] == [1, 2]
+    assert analysis["results"]["client-2"] == [1, 2]
+    assert len(analysis["results"]["client-3"]) == 2
+    assert all(0 <= value <= 2 for value in analysis["results"]["client-3"])
+    merged = (tmp_path / "merged.log").read_text(encoding="utf-8").splitlines()
+    assert len(merged) == 28
+    assert sum("APPLY" in line for line in merged) == 4
+    assert len(analysis["causal_chains"]) == 2
+    assert len(analysis["message_edges"]) == 12
+    a, b = analysis["concurrent_pair"]
+    events = {event["id"]: event for event in analysis["events"]}
+    assert events[a]["node"] != events[b]["node"]
+    assert events[a]["time"] != events[b]["time"]
+    reader_log = (tmp_path / "client-3.log").read_text(encoding="utf-8")
+    assert "Increment" not in reader_log
+    assert reader_log.count("SEND") == 2
