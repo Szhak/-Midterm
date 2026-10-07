@@ -1,4 +1,5 @@
 import argparse
+import threading
 from concurrent import futures
 
 import grpc
@@ -10,17 +11,25 @@ import counter_pb2_grpc as rpc
 class CounterServicer(rpc.CounterServicer):
     def __init__(self):
         self.values = {}
+        self.seen = {}
+        self.lock = threading.Lock()
 
     def Increment(self, request, context):
-        value = self.values.get(request.counter_id, 0) + request.delta
-        self.values[request.counter_id] = value
-        return pb.IncrementReply(new_value=value, was_duplicate=False)
+        with self.lock:
+            if request.idempotency_key in self.seen:
+                value = self.seen[request.idempotency_key]
+                return pb.IncrementReply(new_value=value, was_duplicate=True)
+            value = self.values.get(request.counter_id, 0) + request.delta
+            self.values[request.counter_id] = value
+            self.seen[request.idempotency_key] = value
+            return pb.IncrementReply(new_value=value, was_duplicate=False)
 
     def Get(self, request, context):
-        return pb.GetReply(
-            value=self.values.get(request.counter_id, 0),
-            found=request.counter_id in self.values,
-        )
+        with self.lock:
+            return pb.GetReply(
+                value=self.values.get(request.counter_id, 0),
+                found=request.counter_id in self.values,
+            )
 
 
 def start_server(port):
