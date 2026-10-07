@@ -1,4 +1,6 @@
 import argparse
+import sys
+import time
 import uuid
 
 import grpc
@@ -8,9 +10,10 @@ import counter_pb2_grpc as rpc
 
 
 class CounterClient:
-    def __init__(self, address="127.0.0.1:50051"):
+    def __init__(self, address="127.0.0.1:50051", timeout=2.0):
         self.channel = grpc.insecure_channel(address)
         self.stub = rpc.CounterStub(self.channel)
+        self.timeout = timeout
 
     def incr(self, counter_id, delta, key=None):
         request = pb.IncrementRequest(
@@ -18,10 +21,22 @@ class CounterClient:
             delta=delta,
             idempotency_key=key if key is not None else str(uuid.uuid4()),
         )
-        return self.stub.Increment(request)
+        return self._call(self.stub.Increment, request)
 
     def get(self, counter_id):
-        return self.stub.Get(pb.GetRequest(counter_id=counter_id))
+        return self._call(self.stub.Get, pb.GetRequest(counter_id=counter_id))
+
+    def _call(self, method, request):
+        for attempt in range(4):
+            try:
+                return method(request, timeout=self.timeout)
+            except grpc.RpcError as error:
+                if error.code() not in (
+                    grpc.StatusCode.DEADLINE_EXCEEDED,
+                    grpc.StatusCode.UNAVAILABLE,
+                ) or attempt == 3:
+                    raise
+                time.sleep(0.2 * (2 ** attempt))
 
     def close(self):
         self.channel.close()
@@ -50,9 +65,12 @@ def main():
                 print(f"value={result.value}")
             else:
                 print("Counter not found")
+    except grpc.RpcError as error:
+        print(f"RPC failed: {error.code().name}: {error.details()}", file=sys.stderr)
+        return 1
     finally:
         client.close()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
