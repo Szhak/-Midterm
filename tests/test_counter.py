@@ -1,3 +1,4 @@
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
@@ -7,6 +8,7 @@ import pytest
 import counter_pb2 as pb
 import counter_pb2_grpc as rpc
 from client import CounterClient
+from clocks import LamportClock
 from server import CounterServicer, start_server
 
 
@@ -25,7 +27,9 @@ def running_server():
 @pytest.fixture
 def running_clients():
     server, port = start_server(0)
-    clients = [CounterClient(f"127.0.0.1:{port}") for _ in range(2)]
+    clients = [
+        CounterClient(f"127.0.0.1:{port}", name=f"client-{i + 1}") for i in range(2)
+    ]
     try:
         for client in clients:
             grpc.channel_ready_future(client.channel).result(timeout=5)
@@ -118,9 +122,11 @@ def test_concurrent_increments_exact(running_clients):
 def test_retry_after_timeout_is_safe(delayed_client, monkeypatch):
     client, received_keys, cancelled = delayed_client
     errors = []
+    sent_times = []
     original = client.stub.Increment
 
     def record_error(request, **kwargs):
+        sent_times.append(request.lamport_time)
         try:
             return original(request, **kwargs)
         except grpc.RpcError as error:
@@ -133,6 +139,7 @@ def test_retry_after_timeout_is_safe(delayed_client, monkeypatch):
     state = client.get("x")
 
     assert errors == [grpc.StatusCode.DEADLINE_EXCEEDED]
+    assert 0 < sent_times[0] < sent_times[1]
     assert cancelled.wait(timeout=2)
     assert len(received_keys) == 2
     assert received_keys[0] and received_keys[0] == received_keys[1]
@@ -140,3 +147,83 @@ def test_retry_after_timeout_is_safe(delayed_client, monkeypatch):
     assert result.was_duplicate is True
     assert state.found is True
     assert state.value == 5
+
+
+def test_lamport_clock_rules(capsys):
+    clock = LamportClock("node")
+
+    first = clock.event("SEND", "first")
+    ahead = clock.event("RECV", "ahead", received=10)
+    behind = clock.event("RECV", "behind", received=2)
+    local = clock.event("APPLY", "change")
+
+    assert (first, ahead, behind, local) == (1, 11, 12, 13)
+    assert capsys.readouterr().err.splitlines() == [
+        "[node] SEND   first  L=1",
+        "[node] RECV   ahead  L=11  (received L=10)",
+        "[node] RECV   behind  L=12  (received L=2)",
+        "[node] APPLY  change  L=13",
+    ]
+
+
+def test_lamport_clock_thread_safe():
+    clock = LamportClock("node")
+    barrier = threading.Barrier(2)
+
+    def record_events():
+        barrier.wait(timeout=5)
+        return [clock.event("SEND", "event") for _ in range(100)]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = [pool.submit(record_events) for _ in range(2)]
+        stamps = [stamp for job in jobs for stamp in job.result(timeout=5)]
+
+    assert sorted(stamps) == list(range(1, 201))
+    assert clock.value == 200
+
+
+def test_lamport_rpc_trace(running_clients, capsys):
+    first, second = running_clients
+
+    initial = first.incr("x", 5, "clock-key")
+    duplicate = first.incr("x", 5, "clock-key")
+    state = first.get("x")
+    other_state = second.get("x")
+    lines = capsys.readouterr().err.splitlines()
+
+    assert initial.lamport_time == 4
+    assert duplicate.lamport_time == 8
+    assert duplicate.was_duplicate is True
+    assert state.lamport_time == 12
+    assert other_state.lamport_time == 14
+    assert first.clock.value == 13
+    assert second.clock.value == 15
+    assert lines[:5] == [
+        "[client-1] SEND   Increment(counter=x, delta=5)  L=1",
+        "[replica-A] RECV   Increment(counter=x, delta=5)  L=2  (received L=1)",
+        "[replica-A] APPLY  counter=x -> 5  L=3",
+        "[replica-A] SEND   IncrementReply(new_value=5)  L=4",
+        "[client-1] RECV   IncrementReply(new_value=5)  L=5  (received L=4)",
+    ]
+    assert len(lines) == 17
+    assert sum("APPLY" in line for line in lines) == 1
+    assert "[client-2] SEND   Get(counter=x)  L=1" in lines
+    for line in lines:
+        received = re.search(r"L=(\d+)  \(received L=(\d+)\)", line)
+        if received:
+            assert int(received[1]) > int(received[2])
+
+
+@pytest.mark.parametrize(
+    "message", [pb.IncrementRequest, pb.IncrementReply, pb.GetRequest, pb.GetReply]
+)
+def test_lamport_proto_field(message):
+    stamp = 2 ** 40
+    value = message(lamport_time=stamp)
+
+    restored = message.FromString(value.SerializeToString())
+
+    field = message.DESCRIPTOR.fields_by_name["lamport_time"]
+    assert field.number == 4
+    assert field.type == field.TYPE_UINT64
+    assert restored.lamport_time == stamp

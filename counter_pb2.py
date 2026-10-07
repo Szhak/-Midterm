@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rcounter.proto\x12\x07\x63ounter\"N\n\x10IncrementRequest\x12\x12\n\ncounter_id\x18\x01 \x01(\t\x12\r\n\x05\x64\x65lta\x18\x02 \x01(\x03\x12\x17\n\x0fidempotency_key\x18\x03 \x01(\t\":\n\x0eIncrementReply\x12\x11\n\tnew_value\x18\x01 \x01(\x03\x12\x15\n\rwas_duplicate\x18\x02 \x01(\x08\" \n\nGetRequest\x12\x12\n\ncounter_id\x18\x01 \x01(\t\"(\n\x08GetReply\x12\r\n\x05value\x18\x01 \x01(\x03\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\x32y\n\x07\x43ounter\x12?\n\tIncrement\x12\x19.counter.IncrementRequest\x1a\x17.counter.IncrementReply\x12-\n\x03Get\x12\x13.counter.GetRequest\x1a\x11.counter.GetReplyb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rcounter.proto\x12\x07\x63ounter\"d\n\x10IncrementRequest\x12\x12\n\ncounter_id\x18\x01 \x01(\t\x12\r\n\x05\x64\x65lta\x18\x02 \x01(\x03\x12\x17\n\x0fidempotency_key\x18\x03 \x01(\t\x12\x14\n\x0clamport_time\x18\x04 \x01(\x04\"P\n\x0eIncrementReply\x12\x11\n\tnew_value\x18\x01 \x01(\x03\x12\x15\n\rwas_duplicate\x18\x02 \x01(\x08\x12\x14\n\x0clamport_time\x18\x04 \x01(\x04\"6\n\nGetRequest\x12\x12\n\ncounter_id\x18\x01 \x01(\t\x12\x14\n\x0clamport_time\x18\x04 \x01(\x04\">\n\x08GetReply\x12\r\n\x05value\x18\x01 \x01(\x03\x12\r\n\x05\x66ound\x18\x02 \x01(\x08\x12\x14\n\x0clamport_time\x18\x04 \x01(\x04\x32y\n\x07\x43ounter\x12?\n\tIncrement\x12\x19.counter.IncrementRequest\x1a\x17.counter.IncrementReply\x12-\n\x03Get\x12\x13.counter.GetRequest\x1a\x11.counter.GetReplyb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,13 +32,13 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'counter_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_INCREMENTREQUEST']._serialized_start=26
-  _globals['_INCREMENTREQUEST']._serialized_end=104
-  _globals['_INCREMENTREPLY']._serialized_start=106
-  _globals['_INCREMENTREPLY']._serialized_end=164
-  _globals['_GETREQUEST']._serialized_start=166
-  _globals['_GETREQUEST']._serialized_end=198
-  _globals['_GETREPLY']._serialized_start=200
-  _globals['_GETREPLY']._serialized_end=240
-  _globals['_COUNTER']._serialized_start=242
-  _globals['_COUNTER']._serialized_end=363
+  _globals['_INCREMENTREQUEST']._serialized_end=126
+  _globals['_INCREMENTREPLY']._serialized_start=128
+  _globals['_INCREMENTREPLY']._serialized_end=208
+  _globals['_GETREQUEST']._serialized_start=210
+  _globals['_GETREQUEST']._serialized_end=264
+  _globals['_GETREPLY']._serialized_start=266
+  _globals['_GETREPLY']._serialized_end=328
+  _globals['_COUNTER']._serialized_start=330
+  _globals['_COUNTER']._serialized_end=451
 # @@protoc_insertion_point(module_scope)
