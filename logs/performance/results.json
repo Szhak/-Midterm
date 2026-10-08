@@ -1,0 +1,230 @@
+{
+  "environment": {
+    "captured_utc": "2026-10-08T13:31:34.643724+00:00",
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.14",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 23 Model 104 Stepping 1, AuthenticAMD",
+    "logical_cpus": 12,
+    "packages": {
+      "grpcio": "1.84.0",
+      "grpcio-tools": "1.84.0",
+      "protobuf": "7.36.2",
+      "pytest": "9.1.1"
+    },
+    "base_commit": "94440af77c6d90e2108b5d8fe9cba50595c5b506",
+    "source_sha256": {
+      "server.py": "1d1f748db56f9e1b59ba14353d828d3f974a56ec8fd5442324c02337cee0a550",
+      "client.py": "c8c9be61f51c3eaa78549067b59652567d88be806be34309598e1173ed86f4d8",
+      "clocks.py": "2325f0b9d2d865e198699133e5cd3e7481613887d329303af92a0d79900e7536",
+      "counter.proto": "616adcf9cb3aa89eb9ac49c07dcf9d86665e7d0aabe6a08eadd86eca0812d349",
+      "tests/perf_benchmark.py": "f47d466a8ab2febea8b432e71eef76eaeb1e84daa98e43fe819a9f616c140ca4"
+    }
+  },
+  "settings": {
+    "requests_per_run": 2000,
+    "repeats": 3,
+    "warmup_per_client": 20,
+    "latency_clock": "perf_counter_ns",
+    "transport": "localhost gRPC, insecure",
+    "p95_rule": "sorted[min(ceil(0.95*n), n-1)] (zero-based)",
+    "logging": "enabled, stderr redirected to null device",
+    "quorum_completion": "wait for all three calls"
+  },
+  "runs": [
+    {
+      "configuration": "Single replica, 1 client",
+      "run": 1,
+      "median_ms": 1.6187,
+      "p95_ms": 1.9653,
+      "requests": 2000,
+      "elapsed_s": 3.3293571,
+      "throughput_ops_s": 600.7165767829471,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Single replica, 16 clients",
+      "run": 1,
+      "median_ms": 11.186050000000002,
+      "p95_ms": 12.5592,
+      "requests": 2000,
+      "elapsed_s": 1.4216904,
+      "throughput_ops_s": 1406.7760463178201,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 1 client",
+      "run": 1,
+      "median_ms": 2.6571499999999997,
+      "p95_ms": 2.9616,
+      "requests": 2000,
+      "elapsed_s": 5.3837846,
+      "throughput_ops_s": 371.48588745545277,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 16 clients",
+      "run": 1,
+      "median_ms": 37.03825,
+      "p95_ms": 60.7241,
+      "requests": 2000,
+      "elapsed_s": 4.9065973,
+      "throughput_ops_s": 407.61445819081183,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    },
+    {
+      "configuration": "Single replica, 1 client",
+      "run": 2,
+      "median_ms": 1.64295,
+      "p95_ms": 1.9705,
+      "requests": 2000,
+      "elapsed_s": 3.3684405,
+      "throughput_ops_s": 593.7465720412755,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Single replica, 16 clients",
+      "run": 2,
+      "median_ms": 11.2751,
+      "p95_ms": 12.3945,
+      "requests": 2000,
+      "elapsed_s": 1.4188287,
+      "throughput_ops_s": 1409.6134367735865,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 1 client",
+      "run": 2,
+      "median_ms": 2.66265,
+      "p95_ms": 2.9787,
+      "requests": 2000,
+      "elapsed_s": 5.4110009,
+      "throughput_ops_s": 369.6173844657834,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 16 clients",
+      "run": 2,
+      "median_ms": 38.52015,
+      "p95_ms": 62.8543,
+      "requests": 2000,
+      "elapsed_s": 5.0557551,
+      "throughput_ops_s": 395.58878158477256,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    },
+    {
+      "configuration": "Single replica, 1 client",
+      "run": 3,
+      "median_ms": 1.6671,
+      "p95_ms": 2.0302,
+      "requests": 2000,
+      "elapsed_s": 3.4320072,
+      "throughput_ops_s": 582.7493601994775,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Single replica, 16 clients",
+      "run": 3,
+      "median_ms": 11.280850000000001,
+      "p95_ms": 12.3269,
+      "requests": 2000,
+      "elapsed_s": 1.4197981,
+      "throughput_ops_s": 1408.650990588028,
+      "final_values": [
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 1 client",
+      "run": 3,
+      "median_ms": 2.6811499999999997,
+      "p95_ms": 3.0512,
+      "requests": 2000,
+      "elapsed_s": 5.4362076,
+      "throughput_ops_s": 367.90353628143265,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    },
+    {
+      "configuration": "Quorum (3 replicas), 16 clients",
+      "run": 3,
+      "median_ms": 37.81625,
+      "p95_ms": 60.9498,
+      "requests": 2000,
+      "elapsed_s": 4.9763518,
+      "throughput_ops_s": 401.9008463187832,
+      "final_values": [
+        2000,
+        2000,
+        2000
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "configuration": "Single replica, 1 client",
+      "median_ms": 1.6452499999999999,
+      "p95_ms": 1.9887,
+      "requests": 6000,
+      "throughput_ops_s": 592.3115122613222,
+      "median_stddev_ms": 0.019759231316582693,
+      "p95_stddev_ms": 0.02944512787466799
+    },
+    {
+      "configuration": "Single replica, 16 clients",
+      "median_ms": 11.2465,
+      "p95_ms": 12.4255,
+      "requests": 6000,
+      "throughput_ops_s": 1408.3458386619666,
+      "median_stddev_ms": 0.043397394955098936,
+      "p95_stddev_ms": 0.09755860916506674
+    },
+    {
+      "configuration": "Quorum (3 replicas), 1 client",
+      "median_ms": 2.66725,
+      "p95_ms": 2.9989,
+      "requests": 6000,
+      "throughput_ops_s": 369.66314772199615,
+      "median_stddev_ms": 0.010265909062956267,
+      "p95_stddev_ms": 0.038839870694372385
+    },
+    {
+      "configuration": "Quorum (3 replicas), 16 clients",
+      "median_ms": 37.70075,
+      "p95_ms": 61.7929,
+      "requests": 6000,
+      "throughput_ops_s": 401.64126149575947,
+      "median_stddev_ms": 0.6052351994610592,
+      "p95_stddev_ms": 0.9554413046685114
+    }
+  ]
+}
