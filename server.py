@@ -43,6 +43,8 @@ class CounterServicer(rpc.CounterServicer):
                 f"Increment(counter={request.counter_id}, delta={request.delta})",
                 received=request.lamport_time,
             )
+        if not request.idempotency_key:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Idempotency key is required")
         self.inject_delay("delay-after-recv", request.idempotency_key, context)
         with self.lock:
             if request.idempotency_key in self.seen:
@@ -50,6 +52,8 @@ class CounterServicer(rpc.CounterServicer):
                 duplicate = True
             else:
                 value = self.values.get(request.counter_id, 0) + request.delta
+                if not -(2 ** 63) <= value <= 2 ** 63 - 1:
+                    context.abort(grpc.StatusCode.OUT_OF_RANGE, "Counter exceeds int64 range")
                 self.clock.event("APPLY", f"counter={request.counter_id} -> {value}")
                 self.values[request.counter_id] = value
                 self.seen[request.idempotency_key] = value
