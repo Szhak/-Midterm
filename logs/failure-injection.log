@@ -1,0 +1,34 @@
+test_induced_timeout_with_retry
+errors=['DEADLINE_EXCEEDED'] keys=['timeout-key', 'timeout-key'] duplicate=True final_value=5
+[replica-A] RECV   Increment(counter=x, delta=5)  L=2  (received L=1)
+[replica-A] APPLY  counter=x -> 5  L=3
+[replica-A] FAULT  delay-after-apply delay_ms=3000 key=timeout-key  L=4
+[replica-A] RECV   Increment(counter=x, delta=5)  L=5  (received L=2)
+[replica-A] SEND   IncrementReply(new_value=5)  L=6
+[replica-A] RECV   Get(counter=x)  L=9  (received L=8)
+[replica-A] SEND   GetReply(value=5, found=True)  L=10
+
+test_replica_crash_mid_request
+killed_after_recv=True acks=2/3 live_values=[5, 5]
+[replica-A] RECV   Increment(counter=x, delta=5)  L=2  (received L=1)
+[replica-A] FAULT  delay-after-recv delay_ms=20000 key=crash-key  L=3
+[replica-B] RECV   Increment(counter=x, delta=5)  L=3  (received L=2)
+[replica-B] APPLY  counter=x -> 5  L=4
+[replica-B] SEND   IncrementReply(new_value=5)  L=5
+[replica-B] RECV   Get(counter=x)  L=12  (received L=11)
+[replica-B] SEND   GetReply(value=5, found=True)  L=13
+[replica-C] RECV   Increment(counter=x, delta=5)  L=4  (received L=3)
+[replica-C] APPLY  counter=x -> 5  L=5
+[replica-C] SEND   IncrementReply(new_value=5)  L=6
+[replica-C] RECV   Get(counter=x)  L=16  (received L=15)
+[replica-C] SEND   GetReply(value=5, found=True)  L=17
+
+test_request_duplication
+second_duplicate=True final_value=5 apply_count=1
+[replica-A] RECV   Increment(counter=x, delta=5)  L=2  (received L=1)
+[replica-A] APPLY  counter=x -> 5  L=3
+[replica-A] SEND   IncrementReply(new_value=5)  L=4
+[replica-A] RECV   Increment(counter=x, delta=5)  L=7  (received L=6)
+[replica-A] SEND   IncrementReply(new_value=5)  L=8
+[replica-A] RECV   Get(counter=x)  L=11  (received L=10)
+[replica-A] SEND   GetReply(value=5, found=True)  L=12
