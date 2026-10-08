@@ -11,7 +11,7 @@ import pytest
 
 import counter_pb2 as pb
 import counter_pb2_grpc as rpc
-from client import CounterClient
+from client import CounterClient, QuorumClient, QuorumError
 from clocks import LamportClock
 from server import CounterServicer, start_server
 
@@ -70,6 +70,27 @@ def delayed_client(monkeypatch):
         release.set()
         client.close()
         server.stop(0).wait()
+
+
+@pytest.fixture
+def replica_group():
+    servers = []
+    addresses = []
+    client = None
+    try:
+        for name in ("replica-A", "replica-B", "replica-C"):
+            server, port = start_server(0, name=name)
+            servers.append(server)
+            addresses.append(f"127.0.0.1:{port}")
+        client = QuorumClient(addresses, timeout=0.5, name="quorum-1")
+        for replica in client.clients.values():
+            grpc.channel_ready_future(replica.channel).result(timeout=5)
+        yield servers, client
+    finally:
+        if client is not None:
+            client.close()
+        for server in servers:
+            server.stop(0).wait()
 
 
 def test_increment_applies_delta(running_server):
@@ -260,3 +281,90 @@ def test_three_client_clock_scenario(tmp_path):
     reader_log = (tmp_path / "client-3.log").read_text(encoding="utf-8")
     assert "Increment" not in reader_log
     assert reader_log.count("SEND") == 2
+
+
+@pytest.mark.parametrize("stopped", [0, 1, 2], ids=["A-down", "B-down", "C-down"])
+def test_majority_commit_two_acks(replica_group, stopped):
+    servers, client = replica_group
+    addresses = list(client.clients)
+    servers[stopped].stop(0).wait()
+    live = set(addresses) - {addresses[stopped]}
+
+    result = client.incr("x", 5, key="two-acks")
+    states = [client.clients[address].get("x") for address in live]
+
+    assert result.acknowledged == 2
+    assert set(result.replies) == live
+    assert result.key == "two-acks"
+    assert result.new_value == 5
+    assert result.was_duplicate is False
+    assert all(reply.new_value == 5 for reply in result.replies.values())
+    assert all(state.found and state.value == 5 for state in states)
+
+
+@pytest.mark.parametrize(
+    "survivor", [0, 1, 2, None], ids=["only-A", "only-B", "only-C", "all-down"]
+)
+def test_no_commit_below_majority(replica_group, survivor):
+    servers, client = replica_group
+    addresses = list(client.clients)
+    stopped = {address for i, address in enumerate(addresses) if i != survivor}
+    for index, server in enumerate(servers):
+        if index != survivor:
+            server.stop(0).wait()
+
+    with pytest.raises(QuorumError) as first:
+        client.incr("x", 5)
+    before_retry = (
+        client.clients[addresses[survivor]].get("x") if survivor is not None else None
+    )
+    with pytest.raises(QuorumError) as second:
+        client.incr("x", 5, key=first.value.key)
+    after_retry = (
+        client.clients[addresses[survivor]].get("x") if survivor is not None else None
+    )
+
+    assert first.value.key
+    assert second.value.key == first.value.key
+    for error in (first.value, second.value):
+        assert error.acknowledged == (0 if survivor is None else 1)
+        assert set(error.errors) == stopped
+        assert not hasattr(error, "new_value")
+        assert str(error).startswith("NOT committed:")
+    if survivor is not None:
+        assert before_retry.found and before_retry.value == 5
+        assert after_retry.found and after_retry.value == 5
+
+
+def test_replicas_converge(replica_group):
+    _, first = replica_group
+    second = QuorumClient(first.clients, timeout=0.5, name="quorum-2")
+    barrier = threading.Barrier(2)
+
+    def write_batch(client, writer):
+        barrier.wait(timeout=5)
+        results = []
+        for index in range(50):
+            counter, delta = ("x", 1) if index % 2 == 0 else ("y", 2)
+            results.append(client.incr(counter, delta, key=f"batch-{writer}-{index}"))
+        return results
+
+    try:
+        for replica in second.clients.values():
+            grpc.channel_ready_future(replica.channel).result(timeout=5)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            jobs = [pool.submit(write_batch, client, i) for i, client in enumerate((first, second))]
+            results = [result for job in jobs for result in job.result(timeout=30)]
+        duplicates = [first.incr("x", 1, key=f"batch-{writer}-0") for writer in (0, 1)]
+        states = [
+            (replica.get("x"), replica.get("y")) for replica in first.clients.values()
+        ]
+    finally:
+        second.close()
+
+    assert len(results) == 100
+    assert all(result.acknowledged == 3 for result in results)
+    assert all(set(result.replies) == set(first.clients) for result in results)
+    assert all(result.acknowledged == 3 and result.was_duplicate for result in duplicates)
+    assert all(x.found and y.found for x, y in states)
+    assert [(x.value, y.value) for x, y in states] == [(50, 100)] * 3
