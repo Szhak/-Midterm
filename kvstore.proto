@@ -1,0 +1,44 @@
+syntax = "proto3";
+package kvstore;
+
+service KeyValueStore {
+  rpc Get (GetRequest) returns (GetReply);
+  rpc Put (PutRequest) returns (PutReply);
+}
+
+enum ReadConsistency {
+  LINEARIZABLE = 0;    // Read through the leaseholder.
+  FOLLOWER_STALE = 1;  // Read locally within the requested staleness bound.
+}
+
+enum WriteStrategy {
+  QUORUM_CP = 0;  // Require acknowledgments from a majority of replicas.
+  ALWAYS_AP = 1;  // Accept the write on any available replica.
+}
+
+message GetRequest {
+  string key = 1;
+  ReadConsistency consistency = 2;
+  uint32 max_staleness_ms = 3;  // Used for FOLLOWER_STALE reads.
+}
+
+message GetReply {
+  string value = 1;
+  bool found = 2;
+  uint64 read_timestamp = 3;
+  bool is_stale = 4;
+}
+
+message PutRequest {
+  string key = 1;
+  string value = 2;
+  string idempotency_key = 3;
+  WriteStrategy strategy = 4;
+  uint64 timestamp = 5;
+}
+
+message PutReply {
+  bool success = 1;
+  uint32 acks_received = 2;
+  string error_message = 3;
+}
