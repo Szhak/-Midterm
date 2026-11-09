@@ -1,0 +1,321 @@
+{
+  "suite_seconds": 50.564,
+  "total": 52,
+  "outcomes": {
+    "passed": 52
+  },
+  "tests": [
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_percentiles",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_request_distribution[2000-1]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_request_distribution[2000-16]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_request_distribution[2001-16]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_empty_samples_rejected",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_benchmark",
+      "name": "test_benchmark_keeps_successful_retry_samples",
+      "result": "passed",
+      "seconds": 0.001
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_local_value_and_missing_key",
+      "result": "passed",
+      "seconds": 0.021
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_duplicate_put_preserves_newer_value",
+      "result": "passed",
+      "seconds": 0.013
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_cp_majority_and_retry_through_follower",
+      "result": "passed",
+      "seconds": 1.066
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_cp_quorum_loss_keeps_last_committed_value",
+      "result": "passed",
+      "seconds": 0.529
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_follower_cannot_confirm_cp_without_leader",
+      "result": "passed",
+      "seconds": 2.047
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_linearizable_read_sees_write_while_follower_lags",
+      "result": "passed",
+      "seconds": 0.269
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_follower_reads_only_within_verified_window",
+      "result": "passed",
+      "seconds": 2.125
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_acknowledged_proposal_is_hidden_until_committed",
+      "result": "passed",
+      "seconds": 0.247
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_live_partition_cp_and_quorum_intersection",
+      "result": "passed",
+      "seconds": 2.448
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_partition_ap_conflicts_converge_after_reconnect",
+      "result": "passed",
+      "seconds": 1.56
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_inflight_reconciliation_keeps_newer_pending_write",
+      "result": "passed",
+      "seconds": 0.444
+    },
+    {
+      "module": "tests.test_cap",
+      "name": "test_replayed_ap_batch_cannot_resurrect_an_old_write",
+      "result": "passed",
+      "seconds": 0.263
+    },
+    {
+      "module": "tests.test_cap_benchmark",
+      "name": "test_latency_uses_successful_reads_and_availability_counts_all_attempts",
+      "result": "passed",
+      "seconds": 0.001
+    },
+    {
+      "module": "tests.test_cap_benchmark",
+      "name": "test_all_failed_reads_have_no_latency_percentiles",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_increment_applies_delta",
+      "result": "passed",
+      "seconds": 0.221
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_get_missing_counter",
+      "result": "passed",
+      "seconds": 0.233
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_duplicate_key_not_reapplied",
+      "result": "passed",
+      "seconds": 0.219
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_concurrent_increments_exact",
+      "result": "passed",
+      "seconds": 0.691
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_retry_after_timeout_is_safe",
+      "result": "passed",
+      "seconds": 0.719
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_clock_rules",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_clock_thread_safe",
+      "result": "passed",
+      "seconds": 0.002
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_rpc_trace",
+      "result": "passed",
+      "seconds": 0.225
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_proto_field[IncrementRequest]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_proto_field[IncrementReply]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_proto_field[GetRequest]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_lamport_proto_field[GetReply]",
+      "result": "passed",
+      "seconds": 0.0
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_three_client_clock_scenario",
+      "result": "passed",
+      "seconds": 2.858
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_majority_commit_two_acks[A-down]",
+      "result": "passed",
+      "seconds": 2.9
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_majority_commit_two_acks[B-down]",
+      "result": "passed",
+      "seconds": 2.874
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_majority_commit_two_acks[C-down]",
+      "result": "passed",
+      "seconds": 2.848
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_no_commit_below_majority[only-A]",
+      "result": "passed",
+      "seconds": 4.26
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_no_commit_below_majority[only-B]",
+      "result": "passed",
+      "seconds": 4.302
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_no_commit_below_majority[only-C]",
+      "result": "passed",
+      "seconds": 4.254
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_no_commit_below_majority[all-down]",
+      "result": "passed",
+      "seconds": 4.284
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_replicas_converge",
+      "result": "passed",
+      "seconds": 0.232
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_counter_ids_are_isolated",
+      "result": "passed",
+      "seconds": 0.232
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_concurrent_duplicate_requests",
+      "result": "passed",
+      "seconds": 0.234
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_zero_and_negative_deltas[zero]",
+      "result": "passed",
+      "seconds": 0.232
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_zero_and_negative_deltas[negative]",
+      "result": "passed",
+      "seconds": 0.233
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_duplicate_returns_original_result",
+      "result": "passed",
+      "seconds": 0.231
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_overflow_does_not_change_state[upper]",
+      "result": "passed",
+      "seconds": 0.233
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_overflow_does_not_change_state[lower]",
+      "result": "passed",
+      "seconds": 0.218
+    },
+    {
+      "module": "tests.test_counter",
+      "name": "test_empty_idempotency_key_rejected",
+      "result": "passed",
+      "seconds": 0.232
+    },
+    {
+      "module": "tests.test_failures",
+      "name": "test_replica_crash_mid_request",
+      "result": "passed",
+      "seconds": 4.575
+    },
+    {
+      "module": "tests.test_failures",
+      "name": "test_request_duplication",
+      "result": "passed",
+      "seconds": 0.609
+    },
+    {
+      "module": "tests.test_failures",
+      "name": "test_induced_timeout_with_retry",
+      "result": "passed",
+      "seconds": 1.09
+    }
+  ]
+}
