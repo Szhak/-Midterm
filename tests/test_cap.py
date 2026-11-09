@@ -1,6 +1,7 @@
 import socket
 import time
 from contextlib import ExitStack
+from itertools import combinations
 
 import grpc
 import pytest
@@ -9,7 +10,9 @@ import kvstore_pb2 as kv
 import kvstore_pb2_grpc as kv_rpc
 from client import KeyValueClient
 from kvstore import KeyValueStore
+from lab_cluster import free_ports, replica_processes
 from server import start_server
+from tcp_link import TcpLink
 
 
 @pytest.fixture
@@ -154,3 +157,43 @@ def test_acknowledged_proposal_is_hidden_until_committed(cluster):
     replica.Stage(kv.PutRequest(key="x", value="tentative", idempotency_key="pending"), timeout=1)
     assert b.get("x", consistency=kv.FOLLOWER_STALE, max_staleness_ms=5000).value == "old"
     assert b.get("x", consistency=kv.LINEARIZABLE).value == "old"
+
+
+@pytest.fixture
+def partition_cluster():
+    # Clients address the servers directly. Only links crossing {A,B} | {C}
+    # traverse TCP relays, in both directions (including forwarded client RPCs).
+    a, b, c = ports = free_ports()
+    with ExitStack() as cleanup:
+        to_a, to_b, to_c = links = [cleanup.enter_context(TcpLink(p)) for p in ports]
+        routes = [(a, b, to_c.port), (a, b, to_c.port), (to_a.port, to_b.port, c)]
+        clients = cleanup.enter_context(replica_processes(ports, routes))
+
+        def partition(blocked):
+            for link in links:
+                link.set_blocked(blocked)
+
+        yield clients, partition
+
+
+def test_live_partition_cp_and_quorum_intersection(partition_cluster):
+    (a, b, c), partition = partition_cluster
+    assert a.put("x", "before", strategy=kv.QUORUM_CP, timestamp=100).success
+    wait_for_follower(c, "x", "before")
+    partition(True)
+    majority = b.put("x", "after", strategy=kv.QUORUM_CP, timestamp=200)
+    assert majority.success and majority.acks_received == 2
+    with pytest.raises(grpc.RpcError) as refused:
+        c.put("x", "minority", strategy=kv.QUORUM_CP, timestamp=300)
+    assert refused.value.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED)
+
+    def local(node):
+        return node.get("x", consistency=kv.FOLLOWER_STALE, max_staleness_ms=60_000)
+
+    assert [local(node).value for node in (a, b, c)] == ["after", "after", "before"]
+    for pair in combinations((a, b, c), 2):
+        newest = max((local(node) for node in pair), key=lambda reply: reply.read_timestamp)
+        assert newest.value == "after"  # R=2, W=2; every pair intersects {A,B}.
+    assert local(c).value == "before"  # R=1, W=2; {C} is disjoint.
+    partition(False)
+    wait_for_follower(c, "x", "after")
