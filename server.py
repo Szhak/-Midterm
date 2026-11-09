@@ -6,7 +6,9 @@ import grpc
 
 import counter_pb2 as pb
 import counter_pb2_grpc as rpc
+import kvstore_pb2_grpc as kv_rpc
 from clocks import LamportClock
+from kvstore import KeyValueStore
 
 
 FAULTS = ("none", "delay-after-recv", "delay-after-apply")
@@ -84,6 +86,7 @@ def start_server(port, name="replica-A", fault="none", delay_ms=3000):
     servicer = CounterServicer(name, fault, delay_ms)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
     rpc.add_CounterServicer_to_server(servicer, server)
+    kv_rpc.add_KeyValueStoreServicer_to_server(KeyValueStore(), server)
     bound_port = server.add_insecure_port(f"127.0.0.1:{port}")
     if bound_port == 0:
         raise RuntimeError(f"Cannot bind port {port}")
