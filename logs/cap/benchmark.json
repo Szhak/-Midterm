@@ -1,0 +1,32 @@
+{
+  "started_utc": "2026-11-09T12:53:22+00:00",
+  "python": "3.12.14",
+  "grpc": "1.84.0",
+  "system": "Windows",
+  "replicas": 3,
+  "entry_node": "B",
+  "leaseholder": "A",
+  "iterations_per_mode": 1000,
+  "warmup_per_mode": 30,
+  "max_staleness_ms": 5000,
+  "request_timeout_s": 2.0,
+  "percentile": "nearest rank on successful reads",
+  "results": {
+    "LINEARIZABLE": {
+      "attempted": 1000,
+      "successful": 1000,
+      "availability_pct": 100.0,
+      "median_ms": 0.5562,
+      "p95_ms": 0.6552,
+      "errors": {}
+    },
+    "FOLLOWER_STALE": {
+      "attempted": 1000,
+      "successful": 1000,
+      "availability_pct": 100.0,
+      "median_ms": 0.2776,
+      "p95_ms": 0.3352,
+      "errors": {}
+    }
+  }
+}
