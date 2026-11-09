@@ -100,11 +100,7 @@ def start_server(port, name="replica-A", fault="none", delay_ms=3000, *, cluster
         raise RuntimeError(f"Cannot bind port {port}")
     server.start()
     if cluster_ports:
-        def close_channels_on_stop():
-            server.wait_for_termination()
-            store.close()
-
-        threading.Thread(target=close_channels_on_stop, daemon=True).start()
+        threading.Thread(target=store.maintain_replica, args=(server,), daemon=True).start()
     return server, bound_port
 
 

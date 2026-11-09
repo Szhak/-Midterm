@@ -24,6 +24,7 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
         self.pending = None
         self.revision = 0
         self.committed = {}
+        self.confirmed_at_ns = None
         self.is_leader = not cluster_ports or port == cluster_ports[0]
         self.channels = {
             peer: grpc.insecure_channel(f"127.0.0.1:{peer}")
@@ -31,10 +32,41 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
         }
         self.peers = {peer: rpc.ReplicaSyncStub(channel) for peer, channel in self.channels.items()}
         self.leader = None if self.is_leader else rpc.KeyValueStoreStub(self.channels[cluster_ports[0]])
+        self.leader_sync = None if self.is_leader else self.peers[cluster_ports[0]]
 
-    def close(self):
-        for channel in self.channels.values():
-            channel.close()
+    def maintain_replica(self, server):
+        try:
+            if self.is_leader:
+                server.wait_for_termination()
+                return
+            while True:
+                self.refresh_from_leader()
+                if not server.wait_for_termination(timeout=0.2):
+                    return
+        finally:
+            for channel in self.channels.values():
+                channel.close()
+
+    def refresh_from_leader(self):
+        with self.lock:
+            known = self.revision
+        # Starting the freshness window before the round trip includes any network delay.
+        started_ns = time.monotonic_ns()
+        try:
+            snapshot = self.leader_sync.Fetch(kv.ReplicaAck(revision=known), timeout=0.4)
+        except grpc.RpcError:
+            return
+        with self.lock:
+            if snapshot.revision >= self.revision:
+                self.install_snapshot(snapshot)
+                self.confirmed_at_ns = started_ns
+
+    @staticmethod
+    def forward(method, request, context):
+        try:
+            return method(request, timeout=min(context.time_remaining(), 2.0))
+        except grpc.RpcError as error:
+            context.abort(error.code(), error.details())
 
     def cached_reply(self, request, context):
         previous = self.seen.get(request.idempotency_key)
@@ -51,10 +83,7 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
         if request.strategy == kv.QUORUM_CP:
             if self.is_leader:
                 return self.quorum_put(request, context)
-            try:
-                return self.leader.Put(request, timeout=min(context.time_remaining(), 1.5))
-            except grpc.RpcError as error:
-                context.abort(error.code(), error.details())
+            return self.forward(self.leader.Put, request, context)
         if request.strategy != kv.ALWAYS_AP:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Unknown write strategy")
         with self.write_lock, self.lock:
@@ -66,6 +95,9 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
             current = self.values.get(request.key)
             if current is None or (stamp, record.operation_id) > (current.timestamp, current.operation_id):
                 self.values[request.key] = record
+                if self.is_leader:
+                    self.committed[request.key] = record
+                    self.revision += 1
             reply = kv.PutReply(success=True, acks_received=1)
             self.seen[request.idempotency_key] = (request, reply)
             return reply
@@ -127,10 +159,15 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
     def install_snapshot(self, snapshot):
         if snapshot.revision <= self.revision:
             return
-        for entry in snapshot.values:
-            self.values[entry.key] = Record(entry.value, entry.timestamp, entry.operation_id)
+        self.committed = {
+            entry.key: Record(entry.value, entry.timestamp, entry.operation_id)
+            for entry in snapshot.values
+        }
         self.revision = snapshot.revision
-        self.pending = None
+        if self.pending is not None:
+            committed = self.committed.get(self.pending.key)
+            if committed and committed.operation_id == self.pending.idempotency_key:
+                self.pending = None
 
     def Publish(self, request, context):
         if self.is_leader:
@@ -150,8 +187,18 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
     def Get(self, request, context):
         if not request.key:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Key is required")
+        if request.consistency not in (kv.LINEARIZABLE, kv.FOLLOWER_STALE):
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Unknown read consistency")
+        if not self.is_leader and request.consistency == kv.LINEARIZABLE:
+            return self.forward(self.leader.Get, request, context)
+
         with self.lock:
-            record = self.values.get(request.key)
+            if not self.is_leader:
+                limit_ns = request.max_staleness_ms * 1_000_000
+                if self.confirmed_at_ns is None or time.monotonic_ns() - self.confirmed_at_ns > limit_ns:
+                    context.abort(grpc.StatusCode.FAILED_PRECONDITION, "STALE_READ_EXCEEDED")
+            record = self.committed.get(request.key)
             if record is None:
-                return kv.GetReply(found=False)
-            return kv.GetReply(found=True, value=record.value, read_timestamp=record.timestamp)
+                return kv.GetReply(found=False, is_stale=not self.is_leader)
+            return kv.GetReply(found=True, value=record.value, read_timestamp=record.timestamp,
+                               is_stale=not self.is_leader)

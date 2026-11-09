@@ -188,7 +188,10 @@ def main():
                                 max_staleness_ms=args.max_staleness_ms)
             print(f"found={result.found} value={result.value!r} timestamp={result.read_timestamp} stale={result.is_stale}")
             return 0
-        except (grpc.RpcError, ValueError) as error:
+        except grpc.RpcError as error:
+            print(f"RPC failed: {error.code().name}: {error.details()}", file=sys.stderr)
+            return 1
+        except ValueError as error:
             print(str(error), file=sys.stderr)
             return 1
         finally:

@@ -1,11 +1,14 @@
 import socket
+import time
 from contextlib import ExitStack
 
 import grpc
 import pytest
 
 import kvstore_pb2 as kv
+import kvstore_pb2_grpc as kv_rpc
 from client import KeyValueClient
+from kvstore import KeyValueStore
 from server import start_server
 
 
@@ -90,3 +93,64 @@ def test_follower_cannot_confirm_cp_without_leader(cluster):
     with pytest.raises(grpc.RpcError) as failure:
         b.put("x", "unconfirmed", strategy=kv.QUORUM_CP)
     assert failure.value.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED)
+
+
+def wait_for_follower(client, key, value):
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        try:
+            result = client.get(key, consistency=kv.FOLLOWER_STALE, max_staleness_ms=5000)
+            if result.found and result.value == value:
+                assert result.is_stale
+                return result
+        except grpc.RpcError as error:
+            if error.code() != grpc.StatusCode.FAILED_PRECONDITION:
+                raise
+        time.sleep(0.025)
+    pytest.fail(f"Follower did not confirm {key}={value!r}")
+
+
+def test_linearizable_read_sees_write_while_follower_lags(cluster, monkeypatch):
+    _, (a, b, _) = cluster
+    assert a.put("x", "first", strategy=kv.QUORUM_CP, timestamp=1).success
+    assert wait_for_follower(b, "x", "first").read_timestamp == 1
+
+    # Freeze installation on the followers while RPC traffic to the leader still works.
+    with monkeypatch.context() as delay:
+        delay.setattr(KeyValueStore, "install_snapshot", lambda self, snapshot: None)
+        delay.setattr(KeyValueStore, "refresh_from_leader", lambda self: None)
+        assert a.put("x", "second", strategy=kv.QUORUM_CP).success
+        strong = b.get("x", consistency=kv.LINEARIZABLE)
+        assert strong.value == "second" and not strong.is_stale
+        local = b.get("x", consistency=kv.FOLLOWER_STALE, max_staleness_ms=5000)
+        assert local.value == "first" and local.is_stale
+    wait_for_follower(b, "x", "second")
+
+
+def test_follower_reads_only_within_verified_window(cluster):
+    servers, (a, b, _) = cluster
+    assert a.put("x", "confirmed", strategy=kv.QUORUM_CP).success
+    wait_for_follower(b, "x", "confirmed")
+    servers[0].stop(0).wait()
+    local = b.get("x", consistency=kv.FOLLOWER_STALE, max_staleness_ms=5000)
+    assert local.found and local.is_stale
+    with pytest.raises(grpc.RpcError) as strong:
+        b.get("x", consistency=kv.LINEARIZABLE)
+    assert strong.value.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED)
+    # The only authority for a new snapshot is now stopped.
+    time.sleep(0.06)
+    for key in ("x", "missing"):
+        with pytest.raises(grpc.RpcError) as expired:
+            b.get(key, consistency=kv.FOLLOWER_STALE, max_staleness_ms=50)
+        assert expired.value.code() == grpc.StatusCode.FAILED_PRECONDITION
+        assert expired.value.details() == "STALE_READ_EXCEEDED"
+
+
+def test_acknowledged_proposal_is_hidden_until_committed(cluster):
+    _, (a, b, _) = cluster
+    assert a.put("x", "old", strategy=kv.QUORUM_CP).success
+    wait_for_follower(b, "x", "old")
+    replica = kv_rpc.ReplicaSyncStub(b.channel)
+    replica.Stage(kv.PutRequest(key="x", value="tentative", idempotency_key="pending"), timeout=1)
+    assert b.get("x", consistency=kv.FOLLOWER_STALE, max_staleness_ms=5000).value == "old"
+    assert b.get("x", consistency=kv.LINEARIZABLE).value == "old"
