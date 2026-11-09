@@ -138,3 +138,164 @@ class KeyValueStore:
             timeout,
             metadata,
             _registered_method=True)
+
+
+class ReplicaSyncStub:
+    """Internal protocol for the fixed, in-memory three-replica lab cluster.
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.Stage = channel.unary_unary(
+                '/kvstore.ReplicaSync/Stage',
+                request_serializer=kvstore__pb2.PutRequest.SerializeToString,
+                response_deserializer=kvstore__pb2.ReplicaAck.FromString,
+                _registered_method=True)
+        self.Publish = channel.unary_unary(
+                '/kvstore.ReplicaSync/Publish',
+                request_serializer=kvstore__pb2.CommittedSnapshot.SerializeToString,
+                response_deserializer=kvstore__pb2.ReplicaAck.FromString,
+                _registered_method=True)
+        self.Fetch = channel.unary_unary(
+                '/kvstore.ReplicaSync/Fetch',
+                request_serializer=kvstore__pb2.ReplicaAck.SerializeToString,
+                response_deserializer=kvstore__pb2.CommittedSnapshot.FromString,
+                _registered_method=True)
+
+
+class ReplicaSyncServicer:
+    """Internal protocol for the fixed, in-memory three-replica lab cluster.
+    """
+
+    def Stage(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Publish(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Fetch(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_ReplicaSyncServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'Stage': grpc.unary_unary_rpc_method_handler(
+                    servicer.Stage,
+                    request_deserializer=kvstore__pb2.PutRequest.FromString,
+                    response_serializer=kvstore__pb2.ReplicaAck.SerializeToString,
+            ),
+            'Publish': grpc.unary_unary_rpc_method_handler(
+                    servicer.Publish,
+                    request_deserializer=kvstore__pb2.CommittedSnapshot.FromString,
+                    response_serializer=kvstore__pb2.ReplicaAck.SerializeToString,
+            ),
+            'Fetch': grpc.unary_unary_rpc_method_handler(
+                    servicer.Fetch,
+                    request_deserializer=kvstore__pb2.ReplicaAck.FromString,
+                    response_serializer=kvstore__pb2.CommittedSnapshot.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'kvstore.ReplicaSync', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('kvstore.ReplicaSync', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class ReplicaSync:
+    """Internal protocol for the fixed, in-memory three-replica lab cluster.
+    """
+
+    @staticmethod
+    def Stage(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/kvstore.ReplicaSync/Stage',
+            kvstore__pb2.PutRequest.SerializeToString,
+            kvstore__pb2.ReplicaAck.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Publish(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/kvstore.ReplicaSync/Publish',
+            kvstore__pb2.CommittedSnapshot.SerializeToString,
+            kvstore__pb2.ReplicaAck.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Fetch(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/kvstore.ReplicaSync/Fetch',
+            kvstore__pb2.ReplicaAck.SerializeToString,
+            kvstore__pb2.CommittedSnapshot.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)

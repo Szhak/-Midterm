@@ -42,3 +42,26 @@ message PutReply {
   uint32 acks_received = 2;
   string error_message = 3;
 }
+
+// Internal protocol for the fixed, in-memory three-replica lab cluster.
+service ReplicaSync {
+  rpc Stage (PutRequest) returns (ReplicaAck);
+  rpc Publish (CommittedSnapshot) returns (ReplicaAck);
+  rpc Fetch (ReplicaAck) returns (CommittedSnapshot);
+}
+
+message ReplicaAck {
+  uint64 revision = 1;
+}
+
+message CommittedValue {
+  string key = 1;
+  string value = 2;
+  uint64 timestamp = 3;
+  string operation_id = 4;
+}
+
+message CommittedSnapshot {
+  uint64 revision = 1;
+  repeated CommittedValue values = 2;
+}

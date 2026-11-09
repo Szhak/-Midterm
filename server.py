@@ -12,6 +12,7 @@ from kvstore import KeyValueStore
 
 
 FAULTS = ("none", "delay-after-recv", "delay-after-apply")
+LAB_PORTS = (50051, 50052, 50053)
 
 
 class CounterServicer(rpc.CounterServicer):
@@ -82,15 +83,28 @@ class CounterServicer(rpc.CounterServicer):
             )
 
 
-def start_server(port, name="replica-A", fault="none", delay_ms=3000):
+def start_server(port, name="replica-A", fault="none", delay_ms=3000, *, cluster_ports=None):
+    if cluster_ports is None:
+        cluster_ports = LAB_PORTS if port in LAB_PORTS else ()
+    if cluster_ports and (len(cluster_ports) != 3 or len(set(cluster_ports)) != 3
+                          or port not in cluster_ports or any(not 1 <= p <= 65535 for p in cluster_ports)):
+        raise ValueError("Provide three distinct valid cluster ports in A B C order, including this port")
     servicer = CounterServicer(name, fault, delay_ms)
+    store = KeyValueStore(port, cluster_ports)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
     rpc.add_CounterServicer_to_server(servicer, server)
-    kv_rpc.add_KeyValueStoreServicer_to_server(KeyValueStore(), server)
+    kv_rpc.add_KeyValueStoreServicer_to_server(store, server)
+    kv_rpc.add_ReplicaSyncServicer_to_server(store, server)
     bound_port = server.add_insecure_port(f"127.0.0.1:{port}")
     if bound_port == 0:
         raise RuntimeError(f"Cannot bind port {port}")
     server.start()
+    if cluster_ports:
+        def close_channels_on_stop():
+            server.wait_for_termination()
+            store.close()
+
+        threading.Thread(target=close_channels_on_stop, daemon=True).start()
     return server, bound_port
 
 
@@ -100,10 +114,11 @@ def main():
     parser.add_argument("--name", default="replica-A")
     parser.add_argument("--fault", choices=FAULTS, default="none")
     parser.add_argument("--delay-ms", type=int, default=3000)
+    parser.add_argument("--cluster-ports", type=int, nargs=3, metavar=("A", "B", "C"))
     args = parser.parse_args()
     if args.delay_ms < 0:
         parser.error("Delay must be nonnegative")
-    server, port = start_server(args.port, args.name, args.fault, args.delay_ms)
+    server, port = start_server(args.port, args.name, args.fault, args.delay_ms, cluster_ports=args.cluster_ports)
     print(f"Server listening on 127.0.0.1:{port}", flush=True)
     try:
         server.wait_for_termination()

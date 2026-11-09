@@ -15,11 +15,26 @@ class Record:
     operation_id: str
 
 
-class KeyValueStore(rpc.KeyValueStoreServicer):
-    def __init__(self):
+class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
+    def __init__(self, port, cluster_ports):
         self.lock = threading.Lock()
+        self.write_lock = threading.Lock()
         self.values = {}
         self.seen = {}
+        self.pending = None
+        self.revision = 0
+        self.committed = {}
+        self.is_leader = not cluster_ports or port == cluster_ports[0]
+        self.channels = {
+            peer: grpc.insecure_channel(f"127.0.0.1:{peer}")
+            for peer in cluster_ports if peer != port
+        }
+        self.peers = {peer: rpc.ReplicaSyncStub(channel) for peer, channel in self.channels.items()}
+        self.leader = None if self.is_leader else rpc.KeyValueStoreStub(self.channels[cluster_ports[0]])
+
+    def close(self):
+        for channel in self.channels.values():
+            channel.close()
 
     def cached_reply(self, request, context):
         previous = self.seen.get(request.idempotency_key)
@@ -33,9 +48,16 @@ class KeyValueStore(rpc.KeyValueStoreServicer):
     def Put(self, request, context):
         if not request.key or not request.idempotency_key:
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Key and idempotency key are required")
+        if request.strategy == kv.QUORUM_CP:
+            if self.is_leader:
+                return self.quorum_put(request, context)
+            try:
+                return self.leader.Put(request, timeout=min(context.time_remaining(), 1.5))
+            except grpc.RpcError as error:
+                context.abort(error.code(), error.details())
         if request.strategy != kv.ALWAYS_AP:
-            context.abort(grpc.StatusCode.UNIMPLEMENTED, "Quorum writes require a replica cluster")
-        with self.lock:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Unknown write strategy")
+        with self.write_lock, self.lock:
             cached = self.cached_reply(request, context)
             if cached is not None:
                 return cached
@@ -47,6 +69,83 @@ class KeyValueStore(rpc.KeyValueStoreServicer):
             reply = kv.PutReply(success=True, acks_received=1)
             self.seen[request.idempotency_key] = (request, reply)
             return reply
+
+    def quorum_put(self, request, context):
+        # One fixed leader orders CP writes. Staging a candidate never changes a readable value.
+        with self.write_lock:
+            with self.lock:
+                cached = self.cached_reply(request, context)
+                if cached is not None:
+                    return cached
+            staged = []
+            attempts = {p: stub.Stage.future(request, timeout=0.5) for p, stub in self.peers.items()}
+            for port, attempt in attempts.items():
+                try:
+                    attempt.result()
+                    staged.append(port)
+                except grpc.RpcError:
+                    continue
+            acks = 1 + len(staged)
+            if acks < 2:
+                return kv.PutReply(acks_received=acks, error_message="Quorum loss: need 2 of 3 replicas")
+            with self.lock:
+                stamp = request.timestamp or time.time_ns() // 1_000_000
+                record = Record(request.value, stamp, request.idempotency_key)
+                self.committed[request.key] = self.values[request.key] = record
+                self.revision += 1
+                reply = kv.PutReply(success=True, acks_received=acks)
+                self.seen[request.idempotency_key] = (request, reply)
+                snapshot = self.snapshot()
+            notifications = [self.peers[p].Publish.future(snapshot, timeout=0.5) for p in staged]
+            for notification in notifications:
+                try:
+                    notification.result()
+                except grpc.RpcError:
+                    # The decision is already committed. A missed publication can be fetched later.
+                    pass
+            return reply
+
+    def snapshot(self):
+        return kv.CommittedSnapshot(
+            revision=self.revision,
+            values=[kv.CommittedValue(key=k, value=v.value, timestamp=v.timestamp, operation_id=v.operation_id)
+                    for k, v in self.committed.items()],
+        )
+
+    def Stage(self, request, context):
+        if self.is_leader:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Only followers stage proposals")
+        if request.strategy != kv.QUORUM_CP or not request.key or not request.idempotency_key:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "A valid CP proposal is required")
+        with self.lock:
+            if (self.pending is not None and self.pending.idempotency_key == request.idempotency_key
+                    and self.pending != request):
+                context.abort(grpc.StatusCode.ALREADY_EXISTS, "Conflicting staged operation")
+            self.pending = request
+            return kv.ReplicaAck(revision=self.revision)
+
+    def install_snapshot(self, snapshot):
+        if snapshot.revision <= self.revision:
+            return
+        for entry in snapshot.values:
+            self.values[entry.key] = Record(entry.value, entry.timestamp, entry.operation_id)
+        self.revision = snapshot.revision
+        self.pending = None
+
+    def Publish(self, request, context):
+        if self.is_leader:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Only followers install snapshots")
+        with self.lock:
+            self.install_snapshot(request)
+            return kv.ReplicaAck(revision=self.revision)
+
+    def Fetch(self, request, context):
+        if not self.is_leader:
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Fetch committed state from the leaseholder")
+        with self.lock:
+            if request.revision == self.revision:
+                return kv.CommittedSnapshot(revision=self.revision)
+            return self.snapshot()
 
     def Get(self, request, context):
         if not request.key:
