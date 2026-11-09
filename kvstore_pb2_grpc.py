@@ -162,7 +162,7 @@ class ReplicaSyncStub:
                 _registered_method=True)
         self.Fetch = channel.unary_unary(
                 '/kvstore.ReplicaSync/Fetch',
-                request_serializer=kvstore__pb2.ReplicaAck.SerializeToString,
+                request_serializer=kvstore__pb2.SyncRequest.SerializeToString,
                 response_deserializer=kvstore__pb2.CommittedSnapshot.FromString,
                 _registered_method=True)
 
@@ -204,7 +204,7 @@ def add_ReplicaSyncServicer_to_server(servicer, server):
             ),
             'Fetch': grpc.unary_unary_rpc_method_handler(
                     servicer.Fetch,
-                    request_deserializer=kvstore__pb2.ReplicaAck.FromString,
+                    request_deserializer=kvstore__pb2.SyncRequest.FromString,
                     response_serializer=kvstore__pb2.CommittedSnapshot.SerializeToString,
             ),
     }
@@ -288,7 +288,7 @@ class ReplicaSync:
             request,
             target,
             '/kvstore.ReplicaSync/Fetch',
-            kvstore__pb2.ReplicaAck.SerializeToString,
+            kvstore__pb2.SyncRequest.SerializeToString,
             kvstore__pb2.CommittedSnapshot.FromString,
             options,
             channel_credentials,

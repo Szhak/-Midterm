@@ -47,11 +47,16 @@ message PutReply {
 service ReplicaSync {
   rpc Stage (PutRequest) returns (ReplicaAck);
   rpc Publish (CommittedSnapshot) returns (ReplicaAck);
-  rpc Fetch (ReplicaAck) returns (CommittedSnapshot);
+  rpc Fetch (SyncRequest) returns (CommittedSnapshot);
 }
 
 message ReplicaAck {
   uint64 revision = 1;
+}
+
+message SyncRequest {
+  uint64 revision = 1;
+  repeated CommittedValue ap_updates = 2;
 }
 
 message CommittedValue {

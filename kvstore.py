@@ -14,12 +14,21 @@ class Record:
     timestamp: int
     operation_id: str
 
+    def newer_than(self, previous):
+        return previous is None or (self.timestamp, self.operation_id) > (
+            previous.timestamp, previous.operation_id
+        )
+
+    def to_wire(self, key):
+        return kv.CommittedValue(key=key, value=self.value, timestamp=self.timestamp,
+                                 operation_id=self.operation_id)
+
 
 class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
     def __init__(self, port, cluster_ports):
         self.lock = threading.Lock()
         self.write_lock = threading.Lock()
-        self.values = {}
+        self.pending_ap = {}
         self.seen = {}
         self.pending = None
         self.revision = 0
@@ -50,13 +59,21 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
     def refresh_from_leader(self):
         with self.lock:
             known = self.revision
+            outgoing = self.pending_ap.copy()
         # Starting the freshness window before the round trip includes any network delay.
         started_ns = time.monotonic_ns()
         try:
-            snapshot = self.leader_sync.Fetch(kv.ReplicaAck(revision=known), timeout=0.4)
+            request = kv.SyncRequest(revision=known, ap_updates=[
+                record.to_wire(key) for key, record in outgoing.items()
+            ])
+            snapshot = self.leader_sync.Fetch(request, timeout=0.4)
         except grpc.RpcError:
             return
         with self.lock:
+            # A newer write can arrive during this round trip. Only remove what was acknowledged.
+            for key, sent in outgoing.items():
+                if self.pending_ap.get(key) == sent:
+                    del self.pending_ap[key]
             if snapshot.revision >= self.revision:
                 self.install_snapshot(snapshot)
                 self.confirmed_at_ns = started_ns
@@ -73,7 +90,10 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
         if previous is None:
             return None
         original, reply = previous
-        if original != request:
+        implicit_ap_retry = (request.strategy == original.strategy == kv.ALWAYS_AP
+                             and request.key == original.key and request.value == original.value
+                             and request.timestamp == 0)
+        if original != request and not implicit_ap_retry:
             context.abort(grpc.StatusCode.ALREADY_EXISTS, "Idempotency key reused for another write")
         return reply
 
@@ -92,15 +112,18 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
                 return cached
             stamp = request.timestamp or time.time_ns() // 1_000_000
             record = Record(request.value, stamp, request.idempotency_key)
-            current = self.values.get(request.key)
-            if current is None or (stamp, record.operation_id) > (current.timestamp, current.operation_id):
-                self.values[request.key] = record
-                if self.is_leader:
-                    self.committed[request.key] = record
-                    self.revision += 1
+            if self.is_leader:
+                self.merge_ap(request.key, record)
+            elif record.newer_than(self.pending_ap.get(request.key)):
+                self.pending_ap[request.key] = record
             reply = kv.PutReply(success=True, acks_received=1)
             self.seen[request.idempotency_key] = (request, reply)
             return reply
+
+    def merge_ap(self, key, record):
+        if record.newer_than(self.committed.get(key)):
+            self.committed[key] = record
+            self.revision += 1
 
     def quorum_put(self, request, context):
         # One fixed leader orders CP writes. Staging a candidate never changes a readable value.
@@ -123,7 +146,7 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
             with self.lock:
                 stamp = request.timestamp or time.time_ns() // 1_000_000
                 record = Record(request.value, stamp, request.idempotency_key)
-                self.committed[request.key] = self.values[request.key] = record
+                self.committed[request.key] = record
                 self.revision += 1
                 reply = kv.PutReply(success=True, acks_received=acks)
                 self.seen[request.idempotency_key] = (request, reply)
@@ -140,8 +163,7 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
     def snapshot(self):
         return kv.CommittedSnapshot(
             revision=self.revision,
-            values=[kv.CommittedValue(key=k, value=v.value, timestamp=v.timestamp, operation_id=v.operation_id)
-                    for k, v in self.committed.items()],
+            values=[v.to_wire(k) for k, v in self.committed.items()],
         )
 
     def Stage(self, request, context):
@@ -180,6 +202,14 @@ class KeyValueStore(rpc.KeyValueStoreServicer, rpc.ReplicaSyncServicer):
         if not self.is_leader:
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Fetch committed state from the leaseholder")
         with self.lock:
+            for entry in request.ap_updates:
+                if entry.operation_id in self.seen:
+                    continue
+                record = Record(entry.value, entry.timestamp, entry.operation_id)
+                self.merge_ap(entry.key, record)
+                original = kv.PutRequest(key=entry.key, value=entry.value, timestamp=entry.timestamp,
+                                         strategy=kv.ALWAYS_AP, idempotency_key=entry.operation_id)
+                self.seen[entry.operation_id] = (original, kv.PutReply(success=True, acks_received=1))
             if request.revision == self.revision:
                 return kv.CommittedSnapshot(revision=self.revision)
             return self.snapshot()

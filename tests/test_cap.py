@@ -1,5 +1,7 @@
 import socket
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from itertools import combinations
 
@@ -197,3 +199,70 @@ def test_live_partition_cp_and_quorum_intersection(partition_cluster):
     assert local(c).value == "before"  # R=1, W=2; {C} is disjoint.
     partition(False)
     wait_for_follower(c, "x", "after")
+
+
+def test_partition_ap_conflicts_converge_after_reconnect(partition_cluster):
+    (a, b, c), partition = partition_cluster
+    assert a.put("probe", "ready", strategy=kv.QUORUM_CP).success
+    wait_for_follower(c, "probe", "ready")
+    partition(True)
+
+    cases = [("x", 100, 200, "C"), ("y", 300, 200, "A"), ("z", 400, 400, "C")]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        for key, ts_a, ts_c, _ in cases:
+            start = threading.Barrier(2)
+
+            def write(node, label, stamp):
+                start.wait(timeout=3)
+                return node.put(key, label, strategy=kv.ALWAYS_AP,
+                                operation_id=f"{key}-{label}", timestamp=stamp)
+
+            left = pool.submit(write, a, "A", ts_a)
+            right = pool.submit(write, c, "C", ts_c)
+            for reply in (left.result(), right.result()):
+                assert reply.success and reply.acks_received == 1
+            assert a.get(key).value == "A"
+    assert c.put("minority-only", "saved", strategy=kv.ALWAYS_AP).acks_received == 1
+    assert not a.get("minority-only").found
+
+    partition(False)
+    for key, _, _, winner in cases:
+        wait_for_follower(c, key, winner)
+        wait_for_follower(b, key, winner)
+        assert a.get(key).value == winner
+    wait_for_follower(b, "minority-only", "saved")
+    assert a.get("minority-only").value == "saved"
+
+
+def test_inflight_reconciliation_keeps_newer_pending_write(cluster, monkeypatch):
+    _, (a, b, _) = cluster
+    entered, release = threading.Event(), threading.Event()
+    original = KeyValueStore.merge_ap
+
+    def hold_first_merge(store, key, record):
+        if record.operation_id == "first":
+            entered.set()
+            release.wait(timeout=4)
+        original(store, key, record)
+
+    monkeypatch.setattr(KeyValueStore, "merge_ap", hold_first_merge)
+    try:
+        b.put("x", "one", strategy=kv.ALWAYS_AP, operation_id="first", timestamp=1)
+        assert entered.wait(timeout=3)
+        b.put("x", "two", strategy=kv.ALWAYS_AP, operation_id="second", timestamp=2)
+    finally:
+        release.set()
+    wait_for_follower(b, "x", "two")
+    assert a.get("x").value == "two"
+
+
+def test_replayed_ap_batch_cannot_resurrect_an_old_write(cluster):
+    _, (a, b, _) = cluster
+    b.put("x", "old", strategy=kv.ALWAYS_AP, operation_id="retry", timestamp=100)
+    wait_for_follower(b, "x", "old")
+    assert a.put("x", "latest", strategy=kv.QUORUM_CP, timestamp=50).success
+    replica = kv_rpc.ReplicaSyncStub(a.channel)
+    replica.Fetch(kv.SyncRequest(ap_updates=[
+        kv.CommittedValue(key="x", value="old", timestamp=100, operation_id="retry")
+    ]), timeout=1)
+    assert a.get("x").value == "latest"
